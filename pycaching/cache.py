@@ -123,7 +123,10 @@ class Cache(object):
         content = soup.find(id="Content")
         cache_info["name"] = content.find("h2").text.strip()
         cache_info["type"] = Type.from_filename(content.h2.img["src"].split("/")[-1].partition(".")[0])
-        cache_info["author"] = content.find(class_="Meta").text.partition(":")[2].strip()
+        cache_info["author"] = User(
+            name=content.find(class_="Meta").text.partition(":")[2].strip(),
+            lazy_load_from_code=cache_info["wp"]
+        )
         diff_terr = content.find(class_="DiffTerr").find_all("img")
         assert len(diff_terr) == 2
         cache_info["difficulty"] = float(diff_terr[0]["alt"].split()[0])
@@ -166,7 +169,10 @@ class Cache(object):
             size=Size.from_number(record['containerType']),
             difficulty=record['difficulty'],
             terrain=record['terrain'],
-            author=record['owner']['username'],
+            author=User(
+                name=record['owner']['username'],
+                lazy_load_from_code=record['owner']['code']
+            ),
             hidden=record['placedDate'].split('T')[0],
             favorites=record['favoritePoints'],
             pm_only=record['premiumOnly'],
@@ -177,7 +183,6 @@ class Cache(object):
             # hasLogDraft
             # id
             # lastFoundDate
-            # owner.code
             # userDidNotFind
         )
 
@@ -473,13 +478,15 @@ class Cache(object):
     def author(self):
         """The cache author.
 
-        :type: :class:`str`
+        :type: :class:`User`
         """
+        assert isinstance(self._author, User)
         return self._author
 
     @author.setter
     def author(self, author):
-        author = str(author).strip()
+        if not isinstance(author, User):
+            author = User(author, lazy_load_from_code=self.wp)
         self._author = author
 
     @property
@@ -700,7 +707,11 @@ class Cache(object):
             self.name = cache_details.find("h1").text.strip()
 
             author = cache_details.find(id="ctl00_ContentBody_uxCacheBy").text
-            self.author = author[len("A cache by "):]
+
+            self.author = User(
+                name=author[len("A cache by "):],
+                lazy_load_from_code=self.wp
+            )
 
             # parse cache detail list into a python list
             details = cache_details.find("ul", "ul__hide-details").text.split("\n")
@@ -720,7 +731,12 @@ class Cache(object):
                 raise errors.LoadError()
             self.name = cache_details.find("h2").text
 
-            self.author = cache_details("a")[1].text
+            url = cache_details("a")[1]['href']
+            uuid = re.findall('guid=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})', url)[0]
+            self.author = User(
+                name=cache_details("a")[1].text,
+                uuid=uuid
+            )
 
             D_and_T_img = root.find("div", "CacheStarLabels").find_all("img")
             self.difficulty, self.terrain = [float(img.get("alt").split()[0]) for img in D_and_T_img]
@@ -826,7 +842,10 @@ class Cache(object):
         self.difficulty = data["difficulty"]["text"]
         self.terrain = data["terrain"]["text"]
         self.hidden = parse_date(data["hidden"])
-        self.author = data["owner"]["text"]
+        self.author = User(
+            name=data["owner"]["text"],
+            uuid=data["owner"]["value"]
+        )
         self.favorites = int(data["fp"])
         self.pm_only = data["subrOnly"]
         self.guid = res["data"][0]["g"]
@@ -874,8 +893,10 @@ class Cache(object):
 
         # TODO do NOT use English phrases like "Placed by" to search for attributes
 
-        self.author = content.find(
-            "p", text=re.compile("Placed by:")).text.split("\r\n")[2].strip()
+        if not hasattr(self, '_author'):
+            author = content.find(
+                "p", text=re.compile("Placed by:")).text.split("\r\n")[2].strip()
+            self.author = User(name=author, lazy_load_from_code=self.wp)
 
         hidden_p = content.find("p", text=re.compile("Placed Date:"))
         self.hidden = hidden_p.text.replace("Placed Date:", "").strip()
@@ -1046,7 +1067,7 @@ class Cache(object):
                     type=LogType.from_filename(img_filename),
                     text=log_data["LogText"],
                     visited=log_data["Visited"],
-                    author=log_data["UserName"]
+                    author=User(log_data["UserName"], log_data["AccountGuid"])
                 )
 
     # TODO: trackable list can have multiple pages - handle it in similar way as _logbook_get_page
@@ -1386,3 +1407,53 @@ class Status(enum.IntEnum):
     disabled = 1
     archived = 2
     unpublished = 3
+
+
+class User:
+    """Represent Geocacher instance with provided username and uuid."""
+    __slots__ = ('_name', '_uuid')
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def uuid(self):
+        return self._uuid
+
+    def __init__(self, name, uuid=None, lazy_load_from_code=None):
+        if not isinstance(name, str):
+            raise ValueError("User name '{}' is not a string.".format(name))
+
+        if not (uuid or lazy_load_from_code):
+            raise ValueError("You must provide 'uuid' or 'lazy_load_from_code'")
+
+        self._name = name
+        self._uuid = uuid
+
+    def __eq__(self, other):
+        if isinstance(other, User):
+            return (self.name == other.name) and (self.uuid == other.uuid)
+        return self.name == other
+
+    def __getattr__(self, key):
+        return getattr(self.name, key)
+
+    def __add__(self, other):
+        return self.name + other
+
+    def __radd__(self, other):
+        return other + self.name
+
+    def __mul__(self, other):
+        return self.name * other
+
+    def __rmul__(self, other):
+        return other * self.name
+
+    def __len__(self):
+        return len(self.name)
+
+    def __str__(self):
+        return self.name
+
