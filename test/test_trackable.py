@@ -60,7 +60,14 @@ class TestMethods(NetworkedTest):
         with self.subTest("tid"):
             trackable = Trackable(self.gc, "TB1KEZ9")
             with self.recorder.use_cassette('trackable_load_tid'):
+                self.assertEqual("TB1KEZ9", trackable.tid)
                 self.assertEqual("Lilagul #2: SwedenHawk Geocoin", trackable.name)
+                self.assertEqual("SwedenHawk Geocoin", trackable.type)
+                self.assertEqual("lilagul", trackable.owner)
+                self.assertEqual("a8631868-348a-4e35-b72b-e163420d0abc", trackable.owner.uuid)
+                self.assertEqual("There is currently no goal for this item.", trackable.goal)
+                self.assertEqual("No additional details available.", trackable.description)
+                self.assertEqual("In the hands of Alvis02.", trackable.location)
 
         with self.subTest("trackable url"):
             url = "http://www.geocaching.com/track/details.aspx?guid=cff00ac4-f562-486e-b303-32b2d01ed386"

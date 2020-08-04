@@ -10,7 +10,7 @@ from pycaching import errors
 from pycaching.geo import Point
 from pycaching.trackable import Trackable
 from pycaching.log import Log, Type as LogType
-from pycaching.util import parse_date, rot13, lazy_loaded
+from pycaching.util import parse_date, rot13, lazy_loaded, GUID_REGEX
 from pycaching.user import User
 
 
@@ -734,7 +734,7 @@ class Cache(object):
             self.name = cache_details.find("h2").text
 
             url = cache_details("a")[1]['href']
-            uuid = re.findall('guid=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})', url)[0]
+            uuid = GUID_REGEX.findall(url)[0]
             self.author = User(
                 name=cache_details("a")[1].text,
                 uuid=uuid

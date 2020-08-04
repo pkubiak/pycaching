@@ -17,6 +17,8 @@ class User:
         if not (uuid or lazy_load_from_code):
             raise ValueError("You must provide 'uuid' or 'lazy_load_from_code'")
 
+        if lazy_load_from_code:
+            assert lazy_load_from_code.startswith(('GC', 'PR', 'TB'))
         self._name = name
         self._uuid = uuid
 

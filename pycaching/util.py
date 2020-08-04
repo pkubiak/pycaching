@@ -17,6 +17,8 @@ _rot13codeTable = str.maketrans(
 
 _attributes_url = "https://www.geocaching.com/app/src/assets/sprites/attributes.svg"
 
+GUID_REGEX = re.compile('guid=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
+
 
 def lazy_loaded(func):
     """Decorator providing lazy loading."""

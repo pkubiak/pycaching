@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 from pycaching import errors
-from pycaching.util import lazy_loaded, format_date
+from pycaching.util import lazy_loaded, format_date, GUID_REGEX
+from pycaching.user import User
+
 
 # prefix _type() function to avoid collisions with trackable type
 _type = type
@@ -129,13 +131,15 @@ class Trackable(object):
     def owner(self):
         """The trackable owner.
 
-        :type: :class:`str`
+        :type: :class:`User`
         """
         return self._owner
 
     @owner.setter
     def owner(self, owner):
-        self._owner = owner.strip()
+        if not isinstance(owner, User):
+            owner = User(name=owner, lazy_load_from_code=self.tid)
+        self._owner = owner
 
     @property
     @lazy_loaded
@@ -186,7 +190,13 @@ class Trackable(object):
         self.tid = root.find("span", "CoordInfoCode").text
         self.name = root.find(id="ctl00_ContentBody_lbHeading").text
         self.type = root.find(id="ctl00_ContentBody_BugTypeImage").get("alt")
-        self.owner = root.find(id="ctl00_ContentBody_BugDetails_BugOwner").text
+
+        url = root.find(id="ctl00_ContentBody_BugDetails_BugOwner")['href']
+        self.owner = User(
+            name=root.find(id="ctl00_ContentBody_BugDetails_BugOwner").text,
+            uuid=GUID_REGEX.findall(url)[0]
+        )
+
         self.goal = root.find(id="TrackableGoal").text
         self.description = root.find(id="TrackableDetails").text
         self._kml_url = root.find(id="ctl00_ContentBody_lnkGoogleKML").get("href")
