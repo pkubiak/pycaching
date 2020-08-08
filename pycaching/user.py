@@ -2,6 +2,10 @@ class User:
     """Represent Geocacher instance with provided username and uuid."""
     __slots__ = ('_name', '_uuid')
 
+    URLS = {
+        'profile': 'p/default.aspx'
+    }
+
     @property
     def name(self):
         return self._name
@@ -19,8 +23,21 @@ class User:
 
         if lazy_load_from_code:
             assert lazy_load_from_code.startswith(('GC', 'PR', 'TB'))
-        self._name = name
-        self._uuid = uuid
+        self._name = name.strip()
+        self._uuid = uuid.strip() if uuid else None
+
+    @classmethod
+    def from_username(cls, geocaching, username):
+        #
+        res = geocaching._request(cls.URLS['profile'], params={"u": username})
+        # print(res.status_code)
+        # assert res.status_code == 200
+
+        name = res.find(id="ctl00_ProfileHead_ProfileHeader_lblMemberName").text.strip()
+
+        _, uuid = res.find(id="ctl00_ProfileHead_ProfileHeader_lnkSendMessage")['href'].split('recipientId=')
+
+        return User(name=name, uuid=uuid)
 
     def __eq__(self, other):
         if isinstance(other, User):

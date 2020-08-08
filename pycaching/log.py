@@ -4,6 +4,7 @@ import datetime
 import enum
 from pycaching import errors
 from pycaching.util import parse_date
+from pycaching.user import User
 
 # prefix _type() function to avoid colisions with log type
 _type = type
@@ -94,7 +95,9 @@ class Log(object):
 
     @author.setter
     def author(self, author):
-        self._author = author.strip()
+        if not isinstance(author, User):
+            author = User(author, None)
+        self._author = author
 
 
 class Type(enum.Enum):
